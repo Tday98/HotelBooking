@@ -1,11 +1,12 @@
 import pandas
 
 df = pandas.read_csv("hotels.csv", dtype={"id": str})
-
+df_cards = pandas.read_csv("cards.csv", dtype=str).to_dict(orient="records")
+df_cards_security = pandas.read_csv("card_security.csv", dtype=str)
 
 class Hotel:
-    def __init__(self, id):
-        self.id = id
+    def __init__(self, class_id):
+        self.id = class_id
         self.name = df.loc[df["id"] == self.id, "name"].squeeze()
 
     def book(self):
@@ -37,13 +38,41 @@ class ReservationTicket:
         return content
 
 
+class CreditCard:
+    def __init__(self, number):
+        self.number = number
+
+    def validate(self, expiration, holder, cvc):
+        card_data = {"number": self.number, "expiration": expiration,
+                     "holder": holder, "cvc": cvc}
+        if card_data in df_cards:
+            return True
+        else:
+            return False
+
+class SecureCreditCard(CreditCard):
+    def authenticate(self, given_password):
+        password = df_cards_security.loc[df_cards_security["number"] == self.number, "password"].squeeze()
+        if password == given_password:
+            return True
+        else:
+            return False
+
+
 print(df)
 hotel_id = input("Enter the id of the hotel: ")
 hotel = Hotel(hotel_id)
 if hotel.available():
-    hotel.book()
-    name = input("Enter your name: ")
-    reservation_ticket = ReservationTicket(customer_name=name, hotel_object=hotel)
-    print(reservation_ticket.generate())
+    credit_card = SecureCreditCard(number="1234")
+    if credit_card.validate(expiration="12/26", holder="JOHN SMITH", cvc="123"):
+        if credit_card.authenticate(given_password="mypass"):
+            hotel.book()
+            name = input("Enter your name: ")
+            reservation_ticket = ReservationTicket(customer_name=name, hotel_object=hotel)
+            print(reservation_ticket.generate())
+        else:
+            print("Credit card authentication failed.")
+    else:
+        print("There was a problem with your payment.")
 else:
     print("Hotel is not available")
